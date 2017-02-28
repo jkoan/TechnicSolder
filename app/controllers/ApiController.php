@@ -23,15 +23,21 @@ class APIController extends BaseController {
 			Cache::put('keys', $keys, 1);
 		}
 
-		foreach ($clients as $client) {
-			if ($client->uuid == Input::get('cid')) {
-				$this->client = $client;
+		$input_cid = Input::get('cid');
+		if(!empty($input_cid)) {
+			foreach ($clients as $client) {
+				if ($client->uuid == $input_cid) {
+					$this->client = $client;
+				}
 			}
 		}
 
-		foreach ($keys as $key) {
-			if ($key->api_key == Input::get('key')) {
-				$this->key = $key;
+		$input_key = Input::get('k');
+		if(!empty($input_key)) {
+			foreach ($keys as $key) {
+				if ($key->api_key == $input_key) {
+					$this->key = $key;
+				}
 			}
 		}
 
@@ -40,7 +46,7 @@ class APIController extends BaseController {
 	public function getIndex()
 	{
 		return Response::json(array(
-				'api'     => 'TechnicSolder', 
+				'api'     => 'TechnicSolder',
 				'version' => SOLDER_VERSION,
 				'stream' => SOLDER_STREAM
 				));
@@ -83,17 +89,31 @@ class APIController extends BaseController {
 
 	public function getMod($mod = null, $version = null)
 	{
+		$response = array();
+		
 		if (empty($mod))
-			return Response::json(array("error" => "No mod requested"));
-
-		if (Cache::has('mod.'.$mod))
 		{
-			$mod = Cache::get('mod.'.$mod);
+			if (Cache::has('modlist') && empty($this->client) && empty($this->key))
+			{
+				$response['mods'] = Cache::get('modlist');
+			} else {
+				foreach (Mod::all() as $mod)
+				{
+					$response['mods'][$mod->name] = $mod-> pretty_name;
+				}
+				//usort($response['mod'], function($a, $b){return strcasecmp($a['name'], $b['name']);});
+				Cache::put('modlist',$response['mods'],5);
+			}
+			return Response::json($response);
 		} else {
-			$modname = $mod;
-			$mod = Mod::where('name', '=', $mod)->first();
-			Cache::put('mod.'.$modname,$mod,5);
-		}
+			if (Cache::has('mod.'.$mod))
+			{
+				$mod = Cache::get('mod.'.$mod);
+			} else {
+				$modname = $mod;
+				$mod = Mod::where('name', '=', $mod)->first();
+				Cache::put('mod.'.$modname,$mod,5);
+			}
 
 		if (empty($mod))
 			return Response::json(array('error' => 'Mod does not exist'));
@@ -102,6 +122,7 @@ class APIController extends BaseController {
 			return Response::json($this->fetchMod($mod));
 
 		return Response::json($this->fetchModversion($mod,$version));
+		}
 	}
 
 	public function getVerify($key = null)
@@ -151,6 +172,7 @@ class APIController extends BaseController {
 			return array("error" => "Mod version does not exist");
 
 		$response['md5'] = $version->md5;
+		$response['filesize'] = $version->filesize;
 		$response['url'] = Config::get('solder.mirror_url').'mods/'.$version->mod->name.'/'.$version->mod->name.'-'.$version->version.'.zip';
 
 		return $response;
@@ -166,7 +188,7 @@ class APIController extends BaseController {
 			if (empty($this->client) && empty($this->key)) {
 				Cache::put('modpacks', $modpacks, 5);
 			}
-			
+
 		}
 
 		$response = array();
@@ -206,20 +228,9 @@ class APIController extends BaseController {
 			if (empty($this->client) && empty($this->key))
 				Cache::put('modpack.'.$slug,$modpack,5);
 		}
-		
+
 		if (empty($modpack))
 			return array("error" => "Modpack does not exist");
-
-
-		if ($modpack->private == 1 && !(isset($this->key))) {
-			if(!(isset($this->client))) {
-				return array("error" => "Modpack does not exist");
-			} else {
-				if(!in_array($modpack->id, array_map(function($modpack){ return $modpack->id; }, $this->client->modpacks->all()))) {
-					return array("error" => "Modpack does not exist");
-				}
-			}
-		}
 
 		$response['name']           = $modpack->slug;
 		$response['display_name']   = $modpack->name;
@@ -267,7 +278,7 @@ class APIController extends BaseController {
 
 		if (empty($modpack))
 			return array("error" => "Modpack does not exist");
-			
+
 		$buildpass = $build;
 		if (Cache::has('modpack.'.$slug.'.build.'.$build) && empty($this->client) && empty($this->key))
 		{
@@ -284,7 +295,8 @@ class APIController extends BaseController {
 			return array("error" => "Build does not exist");
 
 		$response['minecraft'] = $build->minecraft;
-		$response['minecraft_md5'] = $build->minecraft_md5;
+		$response['java'] = $build->min_java;
+		$response['memory'] = $build->min_memory;
 		$response['forge'] = $build->forge;
 		$response['mods'] = array();
 
@@ -300,6 +312,7 @@ class APIController extends BaseController {
 												"name" => $modversion->mod->name,
 												"version" => $modversion->version,
 												"md5" => $modversion->md5,
+												"filesize" => $modversion->filesize,
 												"url" => Config::get('solder.mirror_url').'mods/'.$modversion->mod->name.'/'.$modversion->mod->name.'-'.$modversion->version.'.zip'
 												);
 				}
@@ -317,6 +330,7 @@ class APIController extends BaseController {
 												"name" => $modversion->mod->name,
 												"version" => $modversion->version,
 												"md5" => $modversion->md5,
+												"filesize" => $modversion->filesize,
 												"pretty_name" => $modversion->mod->pretty_name,
 												"author" => $modversion->mod->author,
 												"description" => $modversion->mod->description,
@@ -340,6 +354,7 @@ class APIController extends BaseController {
 												"name" => $modversion->mod->name,
 												"version" => $modversion->version,
 												"md5" => $modversion->md5,
+												"filesize" => $modversion->filesize,
 												);
 					$mod = (array)$modversion->mod;
 					$mod = $mod['attributes'];

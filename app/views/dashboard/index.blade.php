@@ -1,4 +1,7 @@
 @extends('layouts/master')
+@section('title')
+    <title>Dashboard - TechnicSolder</title>
+@stop
 @section('content')
 <div class="page-header">
 <h1>Solder Dashboard</h1>
@@ -102,13 +105,13 @@
 		</div>
 		<div id="changelog" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="changelogHeading">
 			<div class="panel-body">
-				<p><strong>{{SOLDER_VERSION}}</strong></p>		
+				<p><strong>{{SOLDER_VERSION}}</strong></p>
 				@if (array_key_exists('error',$changelog))
-				<div class="alert alert-warning">$changelog['error']</div>
+				<div class="alert alert-warning">{{ $changelog['error'] }}</div>
 				@else
 				<ul>
 				@foreach ($changelog as $change)
-				<li>{{ HTML::link($change['commit']['url'], substr($change['sha'], 0, 7)) }} <span style="margin-left:5px;margin-right:5px;"><i class="fa fa-angle-double-left fa-1"></i></span> {{ $change['commit']['message'] }} </li>
+				<li>{{ HTML::link($change['html_url'], substr($change['sha'], 0, 7)) }} <span style="margin-left:5px;margin-right:5px;"><i class="fa fa-angle-double-left fa-1"></i></span> {{ $change['commit']['message'] }} </li>
 				@endforeach
 				</ul>
 				@endif
@@ -116,5 +119,5 @@
 		</div>
 	</div>
 </div>
-<p>TechnicSolder is an open source project. It is under the MIT license. Source Code: <a href="http://github.com/TechnicPack/TechnicSolder" target="_blank">http://github.com/TechnicPack/TechnicSolder</a></p>
+<p>TechnicSolder is an open source project. It is under the MIT license. Source Code: <a href="https://github.com/TechnicPack/TechnicSolder" target="_blank">https://github.com/TechnicPack/TechnicSolder</a></p>
 @endsection
